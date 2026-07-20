@@ -1,5 +1,5 @@
 # =============================================================================
-# TEMPLATE: Package Age (Cooldown) Quarantine Policy — cached packages
+# TEMPLATE: Package Age (Cooldown) Quarantine Policy - cached packages
 # =============================================================================
 # For formats NOT covered by the index-level cooldown policy (see
 # 01_index_level_cooldown.tf) - e.g. NuGet, Docker, Ruby, Rust, Conda, Maven -

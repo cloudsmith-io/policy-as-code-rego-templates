@@ -1,5 +1,5 @@
 # =============================================================================
-# OPTION 2 — full EPM policy stack, malware checked LAST
+# OPTION 2 - full EPM policy stack, malware checked LAST
 # =============================================================================
 # Evaluation order (lowest precedence first; index-level policies always run
 # before cached-package policies regardless of the precedence value set):
@@ -82,7 +82,7 @@ resource "cloudsmith_policy" "index_level_cooldown" {
 }
 
 # -----------------------------------------------------------------------
-# Package age (cooldown catch) — precedence 1
+# Package age (cooldown catch) - precedence 1
 # -----------------------------------------------------------------------
 resource "cloudsmith_policy" "package_age_quarantine" {
   workspace   = data.cloudsmith_organization.workspace.slug
@@ -146,7 +146,7 @@ resource "cloudsmith_policy_action" "package_age_quarantine_state" {
 }
 
 # -----------------------------------------------------------------------
-# Package age release — precedence 2 (inverse of the above)
+# Package age release - precedence 2 (inverse of the above)
 # -----------------------------------------------------------------------
 resource "cloudsmith_policy" "package_age_release" {
   workspace   = data.cloudsmith_organization.workspace.slug
@@ -210,7 +210,7 @@ resource "cloudsmith_policy_action" "package_age_release_state" {
 }
 
 # -----------------------------------------------------------------------
-# Critical/High vulnerability — precedence 3
+# Critical/High vulnerability - precedence 3
 # -----------------------------------------------------------------------
 resource "cloudsmith_policy" "vulnerability_critical_high" {
   workspace   = data.cloudsmith_organization.workspace.slug
@@ -279,7 +279,7 @@ resource "cloudsmith_policy_action" "critical_high_state" {
 }
 
 # -----------------------------------------------------------------------
-# Lower vulnerability — precedence 3 (same precedence as critical/high;
+# Lower vulnerability - precedence 3 (same precedence as critical/high;
 # match criteria for the two policies are mutually exclusive severity bands)
 # -----------------------------------------------------------------------
 resource "cloudsmith_policy" "vulnerability_lower" {
@@ -350,7 +350,7 @@ resource "cloudsmith_policy_action" "lower_vuln_state" {
 }
 
 # -----------------------------------------------------------------------
-# Malware — precedence 4, terminal: checked last, but still has the final say
+# Malware - precedence 4, terminal: checked last, but still has the final say
 # -----------------------------------------------------------------------
 resource "cloudsmith_policy" "malware_quarantine" {
   workspace   = data.cloudsmith_organization.workspace.slug

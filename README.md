@@ -1,4 +1,4 @@
-# Cloudsmith EPM (Enterprise Policy Manager) — Terraform Templates
+# Cloudsmith EPM (Enterprise Policy Manager) - Terraform Templates
 
 Ready-to-use Terraform templates for configuring Cloudsmith's **Enterprise Policy Manager (EPM)**
 policies-as-code: quarantine/malware policies, package-age (cooldown) policies, vulnerability
@@ -45,11 +45,11 @@ cloudsmith-epm-terraform-templates/
 
 ### Two ways to use this repo
 
-1. **Pick a single policy type** — go into `cloudsmith_policy/<file>.tf`, copy the resource block (and,
+1. **Pick a single policy type** - go into `cloudsmith_policy/<file>.tf`, copy the resource block (and,
    if it needs one, the matching file in `cloudsmith_policy_action/`) into your own Terraform config.
-   Every file in these two top-level folders is a **standalone reference snippet** — commented, but not
+   Every file in these two top-level folders is a **standalone reference snippet** - commented, but not
    wired up to a provider block on its own.
-2. **Deploy a full, ready-to-go stack** — `cd` into `cloudsmith_policy/option1` or
+2. **Deploy a full, ready-to-go stack** - `cd` into `cloudsmith_policy/option1` or
    `cloudsmith_policy/option2`. These are complete, self-contained Terraform root modules
    (`versions.tf`, `variables.tf`, `main.tf`, `outputs.tf`) that create the entire policy chain in one
    `terraform apply`. See `docs/POLICY_REFERENCE.md` for what differs between the two options.
@@ -63,7 +63,7 @@ cloudsmith-epm-terraform-templates/
 - Your Cloudsmith **organization slug** (the short name in your workspace URL,
   e.g. `app.cloudsmith.com/<organization_slug>`)
 
-## Setup — local, step by step
+## Setup - local, step by step
 
 ```bash
 # 1. Clone the repo
@@ -73,7 +73,7 @@ cd cloudsmith-epm-terraform-templates
 # 2. Pick a stack to deploy, e.g. Option 1
 cd cloudsmith_policy/option1
 
-# 3. Provide your credentials — never commit real secrets.
+# 3. Provide your credentials - never commit real secrets.
 #    Easiest: environment variables (the cloudsmith provider reads TF_VAR_* automatically)
 export TF_VAR_api_key="<your-cloudsmith-api-key>"
 export TF_VAR_organization_slug="<your-org-slug>"
@@ -85,10 +85,10 @@ cp terraform.tfvars.example terraform.tfvars
 # 4. Initialize Terraform (downloads the cloudsmith provider)
 terraform init
 
-# 5. Review the plan — nothing is created yet
+# 5. Review the plan - nothing is created yet
 terraform plan
 
-# 6. Apply — this is what actually creates the policies + policy actions in Cloudsmith
+# 6. Apply - this is what actually creates the policies + policy actions in Cloudsmith
 terraform apply
 
 # 7. (Optional) inspect outputs, e.g. created policy slug_perms
@@ -127,12 +127,12 @@ data "cloudsmith_organization" "workspace" {
 
 (You can copy this boilerplate from any `versions.tf`/`variables.tf` pair in `option1/` or `option2/`.)
 
-## Policy precedence & terminal flags — quick refresher
+## Policy precedence & terminal flags - quick refresher
 
-- **`precedence`** — the order policies are evaluated in, lowest number first. Index-level policies
+- **`precedence`** - the order policies are evaluated in, lowest number first. Index-level policies
   (like the cooldown/index policy) are always evaluated ahead of cached-package policies, regardless
   of the `precedence` value you set.
-- **`is_terminal`** — if `true`, and the policy matches, Cloudsmith stops evaluating any further,
+- **`is_terminal`** - if `true`, and the policy matches, Cloudsmith stops evaluating any further,
   lower-precedence policies for that package. Use this for "final word" policies like malware
   quarantine or the index-level cooldown, so a later policy can't accidentally make a malicious/newly
   published package available again.
@@ -145,11 +145,11 @@ See `docs/POLICY_REFERENCE.md` for the full breakdown of Option 1 vs Option 2.
   `match if { ... }`). This is the only key Cloudsmith's evaluator reads.
 - The **index-level cooldown** policy is a special case: Cloudsmith recognizes it as a cooldown policy
   purely by the presence of specific variable names (`within_past_days`, `supported_formats`,
-  `included_repositories`, `excluded_repositories`, `include_local_packages`) — see
+  `included_repositories`, `excluded_repositories`, `include_local_packages`) - see
   `01_index_level_cooldown.tf` for the exact contract. It does **not** need a `cloudsmith_policy_action`
-  — Cloudsmith hides matching packages from the index automatically.
+  - Cloudsmith hides matching packages from the index automatically.
 - All other policies need a paired `cloudsmith_policy_action` resource to actually do something
-  (quarantine, tag, etc.) when `match` is `true` — a Rego policy on its own only decides *whether*
+  (quarantine, tag, etc.) when `match` is `true` - a Rego policy on its own only decides *whether*
   something matched, not what happens next.
 - More worked Rego examples: [Cloudsmith Rego Recipes](https://docs.cloudsmith.com/supply-chain-security/epm/rego)
   and [Cooldown Policy docs](https://docs.cloudsmith.com/supply-chain-security/epm/cooldown-policy).
@@ -158,5 +158,5 @@ See `docs/POLICY_REFERENCE.md` for the full breakdown of Option 1 vs Option 2.
 
 The exact input schema for CVE/CVSS/EPSS data (`input.v0.security_scan[...]`) can evolve as Cloudsmith's
 scanning integration changes. Before relying on the vulnerability templates in production, pull a real
-decision log for a package that should have matched and confirm the field names/paths still line up —
+decision log for a package that should have matched and confirm the field names/paths still line up -
 comments in each file flag exactly which assumptions to double-check.

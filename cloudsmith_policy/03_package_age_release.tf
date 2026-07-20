@@ -1,5 +1,5 @@
 # =============================================================================
-# TEMPLATE: Package Age Release Policy — cached packages
+# TEMPLATE: Package Age Release Policy - cached packages
 # =============================================================================
 # Inverse of 02_package_age_quarantine.tf: once a package tagged "in_cooldown"
 # ages past the cooldown window, this policy matches so its paired

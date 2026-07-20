@@ -1,5 +1,5 @@
 # =============================================================================
-# Shared boilerplate for this folder — lets you run every template file in
+# Shared boilerplate for this folder - lets you run every template file in
 # cloudsmith_policy/ together as a single "kitchen sink" demo/test stack, e.g.
 # to try out every policy type at once against a sandbox workspace.
 #

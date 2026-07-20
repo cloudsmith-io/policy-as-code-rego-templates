@@ -4,7 +4,7 @@ Each `.tf` file here is a **standalone reference snippet** for the `cloudsmith_p
 resource(s) that pair with the matching `cloudsmith_policy` template of the same number in
 `../cloudsmith_policy/`.
 
-A `cloudsmith_policy` resource only decides **whether** a package matches (its Rego `match` rule) — it
+A `cloudsmith_policy` resource only decides **whether** a package matches (its Rego `match` rule) - it
 does nothing on its own. `cloudsmith_policy_action` resources decide **what happens** when it matches:
 setting package state (`set_package_state`), adding tags (`add_package_tags`), or removing tags
 (`remove_package_tags`). You can attach multiple actions to the same policy, each with its own
@@ -18,7 +18,7 @@ setting package state (`set_package_state`), adding tags (`add_package_tags`), o
 | `05_vulnerability_critical_high_action.tf` | `cloudsmith_policy/05_vulnerability_critical_high.tf` | add tag `cve_detected` → set state `QUARANTINED` |
 | `06_vulnerability_lower_action.tf` | `cloudsmith_policy/06_vulnerability_lower.tf` | add tag `lower_vuln` → set state `QUARANTINED` |
 
-There's intentionally no `01_index_level_cooldown_action.tf` — the index-level cooldown policy needs no
+There's intentionally no `01_index_level_cooldown_action.tf` - the index-level cooldown policy needs no
 action resource; Cloudsmith hides matching packages from the index automatically (see the header
 comment in `../cloudsmith_policy/01_index_level_cooldown.tf`).
 

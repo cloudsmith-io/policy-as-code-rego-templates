@@ -1,5 +1,5 @@
 # =============================================================================
-# Option 1 — malware checked FIRST, ahead of cooldown/vulnerability policies.
+# Option 1 - malware checked FIRST, ahead of cooldown/vulnerability policies.
 # See ../../docs/POLICY_REFERENCE.md for the full comparison against Option 2.
 # =============================================================================
 

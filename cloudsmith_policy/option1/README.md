@@ -1,7 +1,7 @@
-# Option 1 — malware checked first
+# Option 1 - malware checked first
 
 A complete, deployable Terraform stack: index-level cooldown, cached-package cooldown (catch +
-release), Critical/High vulnerability, lower-severity vulnerability, and malware quarantine — with
+release), Critical/High vulnerability, lower-severity vulnerability, and malware quarantine - with
 malware evaluated at the **highest** precedence (0, terminal) among cached-package policies.
 
 ```

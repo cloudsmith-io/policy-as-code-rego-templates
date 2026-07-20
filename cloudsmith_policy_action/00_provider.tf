@@ -1,5 +1,5 @@
 # =============================================================================
-# Shared boilerplate for this folder — lets you run every template file in
+# Shared boilerplate for this folder - lets you run every template file in
 # cloudsmith_policy_action/ together, provided you supply the slug_perm of an
 # already-existing policy for each one (see the *_policy_slug_perm variables
 # in each file, and terraform.tfvars.example).

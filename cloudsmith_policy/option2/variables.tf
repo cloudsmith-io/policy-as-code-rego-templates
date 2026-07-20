@@ -1,5 +1,5 @@
 # =============================================================================
-# Option 2 — malware checked LAST, after cooldown/vulnerability policies.
+# Option 2 - malware checked LAST, after cooldown/vulnerability policies.
 # See ../../docs/POLICY_REFERENCE.md for the full comparison against Option 1.
 # =============================================================================
 

@@ -15,7 +15,7 @@
 #     the field is not editable even if you pass something else).
 #   - Index-level policies are ALWAYS evaluated before any cached-package policy,
 #     regardless of what you set `precedence` to here.
-#   - This policy needs NO matching `cloudsmith_policy_action` resource — a
+#   - This policy needs NO matching `cloudsmith_policy_action` resource - a
 #     matching package is hidden from the index automatically. Do not create a
 #     policy_action for this policy.
 #   - Only ONE cooldown policy can exist per Cloudsmith workspace.

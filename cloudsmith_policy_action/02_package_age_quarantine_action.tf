@@ -8,7 +8,7 @@
 #
 # THIS FILE IS A STANDALONE REFERENCE SNIPPET. It assumes the policy already
 # exists and exposes its `slug_perm` via the `policy_slug_perm` variable below
-# — either pass it in directly, or reference
+# - either pass it in directly, or reference
 # `cloudsmith_policy.package_age_quarantine.slug_perm` if you've also copied
 # the matching policy resource into the same configuration.
 # =============================================================================
