@@ -1,0 +1,15 @@
+# Copy this file to terraform.tfvars (git-ignored) and fill in real values,
+# or set TF_VAR_* environment variables instead.
+
+api_key            = "your-cloudsmith-api-key"
+organization_slug  = "your-org-slug"
+
+# One of these per action template you're using in this folder at once -
+# get these values from `terraform output` in ../cloudsmith_policy (if you
+# deployed the kitchen-sink stack there), or from `data.cloudsmith_policy` for
+# a policy that already exists.
+package_age_quarantine_policy_slug_perm = "replace-me"
+package_age_release_policy_slug_perm    = "replace-me"
+malware_quarantine_policy_slug_perm     = "replace-me"
+critical_high_policy_slug_perm          = "replace-me"
+lower_vuln_policy_slug_perm             = "replace-me"

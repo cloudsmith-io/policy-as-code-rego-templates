@@ -1,0 +1,8 @@
+# Copy to terraform.tfvars (git-ignored) and fill in real values, or use
+# TF_VAR_* environment variables instead.
+
+api_key           = "your-cloudsmith-api-key"
+organization_slug = "your-org-slug"
+
+# Keep false until you've reviewed simulated impact, then flip to true and re-apply.
+enable_policies = false

@@ -1,0 +1,5 @@
+# Copy this file to terraform.tfvars (git-ignored) and fill in real values,
+# or set TF_VAR_api_key / TF_VAR_organization_slug as environment variables instead.
+
+api_key            = "your-cloudsmith-api-key"
+organization_slug  = "your-org-slug"
