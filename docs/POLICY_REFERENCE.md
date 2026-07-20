@@ -94,7 +94,7 @@ vulnerability, malware) recorded even when malware is also present.
 
 ## Recommended tolerance thresholds (starting points - tune to your risk appetite)
 
-- Cooldown window: 3–5 days is common; some teams use up to 14 days for higher-risk ecosystems.
+- Cooldown window: 3-5 days is common; some teams use up to 14 days for higher-risk ecosystems.
 - Critical/High vulnerability: CVSS v3 score > 9.
 - Lower vulnerability: CVSS v3 score > 6 **and** EPSS > 8 (i.e., a real-world exploitation-likelihood
   signal, not CVSS alone) - this keeps the "lower" bucket from over-quarantining low-risk CVEs.
