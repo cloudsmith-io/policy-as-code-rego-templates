@@ -99,7 +99,7 @@ resource "cloudsmith_policy" "package_age_quarantine" {
 
     default match := false
 
-    min_age_days := ${var.package_age_min_days}
+    within_past_days := ${var.package_age_min_days}
     supported_formats := {${join(", ", formatlist("%q", var.package_age_formats))}}
     exempt_tag := "${var.exempt_tag_cooldown}"
 
@@ -114,12 +114,12 @@ resource "cloudsmith_policy" "package_age_quarantine" {
         not _has_exempt_tag
         pkg := input.v0.package
         pkg.format in supported_formats
-        min_age_date := time.add_date(time.now_ns(), 0, 0, 0 - min_age_days)
+        within_past_days_date := time.add_date(time.now_ns(), 0, 0, 0 - within_past_days)
         publish_date := time.parse_rfc3339_ns(pkg.upstream_metadata.published_at)
-        publish_date >= min_age_date
+        publish_date >= within_past_days_date
         msg := sprintf(
             "Package %v/%v (%v) is younger than the %v-day cooldown window (published %v)",
-            [pkg.name, pkg.version, pkg.format, min_age_days, pkg.upstream_metadata.published_at],
+            [pkg.name, pkg.version, pkg.format, within_past_days, pkg.upstream_metadata.published_at],
         )
     }
   REGO
@@ -138,7 +138,6 @@ resource "cloudsmith_policy_action" "package_age_quarantine_tag" {
 resource "cloudsmith_policy_action" "package_age_quarantine_state" {
   workspace        = data.cloudsmith_organization.workspace.slug
   policy_slug_perm = cloudsmith_policy.package_age_quarantine.slug_perm
-  precedence       = 20
 
   set_package_state {
     package_state = "QUARANTINED"
@@ -163,7 +162,7 @@ resource "cloudsmith_policy" "package_age_release" {
 
     default match := false
 
-    min_age_days := ${var.package_age_min_days}
+    within_past_days := ${var.package_age_min_days}
     supported_formats := {${join(", ", formatlist("%q", var.package_age_formats))}}
     cooldown_tag := "in_cooldown"
 
@@ -178,12 +177,12 @@ resource "cloudsmith_policy" "package_age_release" {
         _has_cooldown_tag
         pkg := input.v0.package
         pkg.format in supported_formats
-        min_age_date := time.add_date(time.now_ns(), 0, 0, 0 - min_age_days)
+        within_past_days_date := time.add_date(time.now_ns(), 0, 0, 0 - within_past_days)
         publish_date := time.parse_rfc3339_ns(pkg.upstream_metadata.published_at)
-        publish_date < min_age_date
+        publish_date < within_past_days_date
         msg := sprintf(
             "Package %v/%v (%v) has aged past the %v-day cooldown window - releasing",
-            [pkg.name, pkg.version, pkg.format, min_age_days],
+            [pkg.name, pkg.version, pkg.format, within_past_days],
         )
     }
   REGO
@@ -202,7 +201,6 @@ resource "cloudsmith_policy_action" "package_age_release_untag" {
 resource "cloudsmith_policy_action" "package_age_release_state" {
   workspace        = data.cloudsmith_organization.workspace.slug
   policy_slug_perm = cloudsmith_policy.package_age_release.slug_perm
-  precedence       = 20
 
   set_package_state {
     package_state = "AVAILABLE"
@@ -229,6 +227,7 @@ resource "cloudsmith_policy" "vulnerability_critical_high" {
 
     max_cvss_score := ${var.critical_vuln_cvss_threshold}
     exempt_tag := "${var.exempt_tag_critical}"
+    ignored_cves := {}
 
     match if {
         not _has_exempt_tag
@@ -249,6 +248,8 @@ resource "cloudsmith_policy" "vulnerability_critical_high" {
 
         some val in vulnerability.CVSS
         val.V3Score > max_cvss_score
+
+        not vulnerability.VulnerabilityID in ignored_cves
 
         msg := sprintf(
             "Critical/High CVE %v (CVSS %v) detected in %v",
@@ -271,7 +272,6 @@ resource "cloudsmith_policy_action" "critical_high_tag" {
 resource "cloudsmith_policy_action" "critical_high_state" {
   workspace        = data.cloudsmith_organization.workspace.slug
   policy_slug_perm = cloudsmith_policy.vulnerability_critical_high.slug_perm
-  precedence       = 20
 
   set_package_state {
     package_state = "QUARANTINED"
@@ -297,9 +297,10 @@ resource "cloudsmith_policy" "vulnerability_lower" {
 
     default match := false
 
-    min_cvss_score := ${var.lower_vuln_cvss_threshold}
-    min_epss_score := ${var.lower_vuln_epss_threshold}
+    max_cvss_score := ${var.lower_vuln_cvss_threshold}
+    max_epss_score := ${var.lower_vuln_epss_threshold}
     exempt_tag := "${var.exempt_tag_lower}"
+    ignored_cves := {}
 
     match if {
         not _has_exempt_tag
@@ -316,14 +317,16 @@ resource "cloudsmith_policy" "vulnerability_lower" {
         some vulnerability in scan.Vulnerabilities
 
         some val in vulnerability.CVSS
-        val.V3Score > min_cvss_score
+        val.V3Score > max_cvss_score
 
-        # NOTE: confirm exact EPSS field name/path before production use.
-        vulnerability.EPSS > min_epss_score
+        some vuln in input.v0["vulnerabilities"]
+        vuln.epss_score > max_epss_score
+
+        not vulnerability.VulnerabilityID in ignored_cves
 
         msg := sprintf(
             "Lower-severity CVE %v (CVSS %v, EPSS %v) detected in %v",
-            [vulnerability.VulnerabilityID, val.V3Score, vulnerability.EPSS, input.v0["package"].name],
+            [vulnerability.VulnerabilityID, val.V3Score, vuln.epss_score, input.v0["package"].name],
         )
     }
   REGO
@@ -342,7 +345,6 @@ resource "cloudsmith_policy_action" "lower_vuln_tag" {
 resource "cloudsmith_policy_action" "lower_vuln_state" {
   workspace        = data.cloudsmith_organization.workspace.slug
   policy_slug_perm = cloudsmith_policy.vulnerability_lower.slug_perm
-  precedence       = 20
 
   set_package_state {
     package_state = "QUARANTINED"
@@ -365,19 +367,30 @@ resource "cloudsmith_policy" "malware_quarantine" {
 
     default match := false
 
-    match if count(malicious_packages) > 0
+    match if {
+          input.v0.osv != null
+          count(malicious_packages) > 0
+        }
 
-    malicious_packages := [vulnerability.id |
-        some vulnerability in input.v0.osv
-        startswith(vulnerability.id, "MAL-")
-    ]
+        malicious_packages := [vulnerability.id |
+            input.v0.osv != null
+            some vulnerability in input.v0.osv
+            startswith(vulnerability.id, "MAL-")
+        ]
+
+        reason[msg] if {
+          match
+          msg := sprintf(
+            "Detected %d malicious vulnerability ID(s): %v",
+            [count(malicious_packages), malicious_packages],
+          )
+        }
   REGO
 }
 
 resource "cloudsmith_policy_action" "malware_quarantine_state" {
   workspace        = data.cloudsmith_organization.workspace.slug
   policy_slug_perm = cloudsmith_policy.malware_quarantine.slug_perm
-  precedence       = 10
 
   set_package_state {
     package_state = "QUARANTINED"

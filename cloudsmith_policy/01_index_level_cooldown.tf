@@ -40,7 +40,7 @@ variable "cooldown_supported_formats" {
     format support in the Cloudsmith docs before relying on this list, since it
     is actively expanding.
   DESC
-  default     = ["npm", "python", "go"]
+  default     = ["npm", "python", "go","nuget"]
 }
 
 variable "cooldown_included_repositories" {
@@ -76,7 +76,6 @@ resource "cloudsmith_policy" "index_level_cooldown" {
 
     default match := false
 
-    # --- Required cooldown-policy variables (names must match exactly) ---
     within_past_days := ${var.cooldown_within_past_days}
 
     supported_formats := {${join(", ", formatlist("%q", var.cooldown_supported_formats))}}
@@ -86,7 +85,6 @@ resource "cloudsmith_policy" "index_level_cooldown" {
     excluded_repositories := {${join(", ", formatlist("%q", var.cooldown_excluded_repositories))}}
 
     include_local_packages := ${var.cooldown_include_local_packages}
-    # -----------------------------------------------------------------------
 
     match if count(reason) != 0
 

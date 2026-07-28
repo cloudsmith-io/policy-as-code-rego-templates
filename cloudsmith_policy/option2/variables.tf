@@ -29,8 +29,8 @@ variable "index_cooldown_within_past_days" {
 
 variable "index_cooldown_formats" {
   type        = list(string)
-  default     = ["npm", "python", "go"]
-  description = "Formats covered by the index-level cooldown policy. Confirm current format support (e.g. nuget) in Cloudsmith docs before changing this."
+  default     = ["npm", "python", "go", "nuget]
+  description = "Formats covered by the index-level cooldown policy."
 }
 
 # --- Cached-package cooldown (formats not covered by the index policy) --
@@ -42,7 +42,7 @@ variable "package_age_min_days" {
 
 variable "package_age_formats" {
   type        = list(string)
-  default     = ["nuget", "docker", "ruby", "rust", "conda", "maven"]
+  default     = ["docker", "ruby", "rust", "conda", "maven"]
   description = "Formats covered by the cached-package cooldown policy (i.e. NOT already covered by the index-level cooldown)."
 }
 
@@ -61,8 +61,8 @@ variable "lower_vuln_cvss_threshold" {
 
 variable "lower_vuln_epss_threshold" {
   type        = number
-  default     = 8
-  description = "EPSS score threshold (exclusive) for the lower-severity vulnerability policy. Confirm the exact EPSS field name/scale against a real decision log before production use - see 06_vulnerability_lower.tf in ../ for details."
+  default     = 0.0001
+  description = "EPSS score threshold (exclusive) for the lower-severity vulnerability policy.
 }
 
 # --- Exemption tags --------------------------------------------------------
