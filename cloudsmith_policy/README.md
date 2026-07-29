@@ -20,8 +20,9 @@ resource (and its `variable` blocks) into a Terraform configuration that already
 
 ## `option1/` and `option2/`
 
-These two subdirectories are **complete, deployable Terraform root modules** - not snippets. Each
-contains every `cloudsmith_policy` + `cloudsmith_policy_action` resource needed to stand up a full
+These two subdirectories are **complete, deployable Terraform root modules** - not snippets. These
+are the options that can be used to understand the evaluation flow. This can be changed based on the specific requirements
+accordingly. Each contains every `cloudsmith_policy` + `cloudsmith_policy_action` resource needed to stand up a full
 malware/cooldown/vulnerability policy chain in one `terraform apply`. The only difference between them
 is *when* the malware check runs relative to the others. See `../docs/POLICY_REFERENCE.md` for the full
 comparison, or each folder's own `README.md`.
