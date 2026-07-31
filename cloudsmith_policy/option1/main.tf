@@ -363,13 +363,13 @@ resource "cloudsmith_policy" "vulnerability_lower" {
         val.V3Score > max_cvss_score
 
         some vuln in input.v0["vulnerabilities"]
-        vuln.epss_score > max_epss_score
+        vuln.epss.score > max_epss_score
 
         not vulnerability.VulnerabilityID in ignored_cves
 
         msg := sprintf(
             "Lower-severity CVE %v (CVSS %v, EPSS %v) detected in %v",
-            [vulnerability.VulnerabilityID, val.V3Score, vuln.epss_score, input.v0["package"].name],
+            [vulnerability.VulnerabilityID, val.V3Score, vuln.epss.score, input.v0["package"].name],
         )
     }
   REGO
