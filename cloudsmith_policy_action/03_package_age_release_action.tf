@@ -28,7 +28,7 @@ resource "cloudsmith_policy_action" "package_age_release_untag" {
 resource "cloudsmith_policy_action" "package_age_release_state" {
   workspace        = data.cloudsmith_organization.workspace.slug
   policy_slug_perm = var.package_age_release_policy_slug_perm
-  precedence       = 20
+  precedence       = 0
 
   set_package_state {
     package_state = "AVAILABLE"
