@@ -62,7 +62,7 @@ variable "lower_vuln_cvss_threshold" {
 variable "lower_vuln_epss_threshold" {
   type        = number
   default     = 0.0001
-  description = "EPSS score threshold (exclusive) for the lower-severity vulnerability policy.
+  description = "EPSS score threshold (exclusive) for the lower-severity vulnerability policy."
 }
 
 # --- Exemption tags --------------------------------------------------------
