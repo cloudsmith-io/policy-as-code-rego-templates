@@ -95,6 +95,23 @@ terraform apply
 terraform output
 ```
 
+> **Policies are created disabled by default - nothing is enforced yet.**
+> Every policy in this repo is created with `enabled = false` (via the `enable_policies` variable in
+> `option1`/`option2`, or the per-file default elsewhere). This is intentional: an enabled cooldown or
+> vulnerability policy can immediately quarantine or hide packages that are currently being pulled by
+> your builds, so we don't want that to happen automatically the moment you run `terraform apply`.
+>
+> You can toggle this yourself once you're ready — copy `terraform.tfvars.example` to
+> `terraform.tfvars` (if you haven't already) and flip the relevant variable (`enable_policies` in
+> `option1`/`option2`) to `true`, then re-run `terraform apply`.
+>
+> **Before enabling, we recommend running the new policy through Cloudsmith's Simulation API.** It
+> evaluates the policy's Rego against your real, existing packages and reports back whether each one
+> would match, why, and what actions would fire — without changing any package state or writing to
+> decision logs. This lets you see the real-world impact of a policy before it can affect anything live.
+> See [Step 4: Simulating the policy](https://docs.cloudsmith.com/supply-chain-security/epm/getting-started#step-4-simulating-the-policy)
+> in Cloudsmith's docs for the exact request format, using the `slug_perm` from your `terraform output`.
+
 To tear the stack down again:
 
 ```bash
