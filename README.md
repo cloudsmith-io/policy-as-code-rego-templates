@@ -1,4 +1,4 @@
-# Cloudsmith EPM (Enterprise Policy Manager) - Terraform Templates
+# Cloudsmith Policy-as-code - Terraform Templates
 
 Ready-to-use Terraform templates for configuring Cloudsmith's **Enterprise Policy Manager (EPM)**
 policies-as-code: quarantine/malware policies, package-age (cooldown) policies, vulnerability
