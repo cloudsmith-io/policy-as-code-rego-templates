@@ -6,7 +6,7 @@
 variable "api_key" {
   type        = string
   sensitive   = true
-  description = "Cloudsmith API key with permission to manage Policy Manager. Set via TF_VAR_api_key or terraform.tfvars (git-ignored)."
+  description = "Cloudsmith API key with permission to manage policies. Set via TF_VAR_api_key or terraform.tfvars (git-ignored)."
 }
 
 variable "organization_slug" {

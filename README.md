@@ -1,12 +1,11 @@
 # Cloudsmith Policy-as-Code Terraform Templates
 
-Ready-to-use Terraform templates for configuring Cloudsmith's **Enterprise Policy Manager (EPM)**
-policies-as-code: quarantine/malware policies, package-age (cooldown) policies, vulnerability
+Ready-to-use Terraform templates for configuring Cloudsmith's **policy-as-code**: quarantine/malware policies, package-age (cooldown) policies, vulnerability
 policies, and the two full "Malware Handling" strategies (**Option 1** and **Option 2**) referenced
 in policy strategy design docs.
 
 This repo is built on top of the official [`cloudsmith-io/cloudsmith`](https://registry.terraform.io/providers/cloudsmith-io/cloudsmith/latest)
-Terraform provider and its four EPM-related schema objects:
+Terraform provider and its four policy-as-code schema objects:
 
 | Terraform object | Purpose | Docs |
 |---|---|---|
@@ -18,7 +17,7 @@ Terraform provider and its four EPM-related schema objects:
 ## Repository layout
 
 ```
-cloudsmith-epm-terraform-templates/
+policy-as-code-rego-templates/
 ├── docs/
 │   └── POLICY_REFERENCE.md        # Plain-language explanation of every policy + the two options
 ├── cloudsmith_policy/              # One reference template per policy TYPE (cloudsmith_policy only)
@@ -58,7 +57,7 @@ cloudsmith-epm-terraform-templates/
 ## Prerequisites
 
 - [Terraform](https://developer.hashicorp.com/terraform/install) >= 1.5
-- A Cloudsmith organization/workspace with **Policy Manager (EPM)** enabled
+- A Cloudsmith organization/workspace with **policy-as-code** enabled
 - A Cloudsmith API key with permission to manage policies
   ([Generating an API Key](https://docs.cloudsmith.com/accounts-and-teams/api-key))
 - Your Cloudsmith **organization slug** (the short name in your workspace URL,
@@ -68,8 +67,8 @@ cloudsmith-epm-terraform-templates/
 
 ```bash
 # 1. Clone the repo
-git clone <your-git-remote-url> cloudsmith-epm-terraform-templates
-cd cloudsmith-epm-terraform-templates
+git clone <your-git-remote-url> policy-as-code-rego-templates
+cd policy-as-code-rego-templates
 
 # 2. Pick a stack to deploy, e.g. Option 1
 cd cloudsmith_policy/option1
@@ -159,7 +158,7 @@ See `docs/POLICY_REFERENCE.md` for the full breakdown of Option 1 vs Option 2.
 
 ## Scope (blast radius)
 
-EPM policies evaluate across the whole workspace by default. Scope them to avoid
+Policies evaluate across the whole workspace by default. Scope them to avoid
 acting on unrelated repositories:
 
 - Cooldown uses `cooldown_included_repositories` / `cooldown_excluded_repositories`.

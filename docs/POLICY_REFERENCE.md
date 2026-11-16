@@ -1,4 +1,4 @@
-# EPM Policy Reference
+# Policy-as-Code Reference
 
 Plain-language reference for the policy templates in this repo, generalized from a policy-strategy
 design exercise. Use this as the "what and why" companion to the `.tf` files.
@@ -12,7 +12,7 @@ design exercise. Use this as the "what and why" companion to the `.tf` files.
   current policies and vulnerability data at least once every 12 hours, and immediately whenever a new
   vulnerability is published or a relevant policy changes. Individual packages can drift in and out of
   sync with each other; this is expected.
-- **Policy Manager / Policy-as-Code**: all policies are managed as Rego, via the UI, the API, or (as in
+- **Policy-as-Code**: all policies are managed as Rego, via the UI, the API, or (as in
   this repo) Terraform.
 - **Index-level Cooldown template**: hides non-compliant packages from the package index entirely
   (rather than caching-then-quarantining), so tools resolving "latest" or a version range
