@@ -1,4 +1,4 @@
-# Cloudsmith Policy-as-code - Terraform Templates
+# Cloudsmith Policy-as-Code Terraform Templates
 
 Ready-to-use Terraform templates for configuring Cloudsmith's **Enterprise Policy Manager (EPM)**
 policies-as-code: quarantine/malware policies, package-age (cooldown) policies, vulnerability
@@ -46,11 +46,11 @@ cloudsmith-epm-terraform-templates/
 
 ### Two ways to use this repo
 
-1. **Pick a single policy type** - go into `cloudsmith_policy/<file>.tf`, copy the resource block (and,
+1. **Pick a single policy type**: go into `cloudsmith_policy/<file>.tf`, copy the resource block (and,
    if it needs one, the matching file in `cloudsmith_policy_action/`) into your own Terraform config.
-   Every file in these two top-level folders is a **standalone reference snippet** - commented, but not
-   wired up to a provider block on its own.
-2. **Deploy a full, ready-to-go stack** - `cd` into `cloudsmith_policy/option1` or
+   Every file in these two top-level folders is a **standalone reference snippet** (commented, but not
+   wired up to a provider block on its own).
+2. **Deploy a full, ready-to-go stack**: `cd` into `cloudsmith_policy/option1` or
    `cloudsmith_policy/option2`. These are complete, self-contained Terraform root modules
    (`versions.tf`, `variables.tf`, `main.tf`, `outputs.tf`) that create the entire policy chain in one
    `terraform apply`. See `docs/POLICY_REFERENCE.md` for what differs between the two options.
@@ -64,7 +64,7 @@ cloudsmith-epm-terraform-templates/
 - Your Cloudsmith **organization slug** (the short name in your workspace URL,
   e.g. `app.cloudsmith.com/<organization_slug>`)
 
-## Setup - local, step by step
+## Setup (local, step by step)
 
 ```bash
 # 1. Clone the repo
@@ -74,7 +74,7 @@ cd cloudsmith-epm-terraform-templates
 # 2. Pick a stack to deploy, e.g. Option 1
 cd cloudsmith_policy/option1
 
-# 3. Provide your credentials - never commit real secrets.
+# 3. Provide your credentials. Never commit real secrets.
 #    Easiest: environment variables (the cloudsmith provider reads TF_VAR_* automatically)
 export TF_VAR_api_key="<your-cloudsmith-api-key>"
 export TF_VAR_organization_slug="<your-org-slug>"
@@ -86,29 +86,29 @@ cp terraform.tfvars.example terraform.tfvars
 # 4. Initialize Terraform (downloads the cloudsmith provider)
 terraform init
 
-# 5. Review the plan - nothing is created yet
+# 5. Review the plan. Nothing is created yet
 terraform plan
 
-# 6. Apply - this is what actually creates the policies + policy actions in Cloudsmith
+# 6. Apply. This creates the policies and policy actions in Cloudsmith
 terraform apply
 
 # 7. (Optional) inspect outputs, e.g. created policy slug_perms
 terraform output
 ```
 
-> **Policies are created disabled by default - nothing is enforced yet.**
+> **Policies are created disabled by default; nothing is enforced yet.**
 > Every policy in this repo is created with `enabled = false` (via the `enable_policies` variable in
 > `option1`/`option2`, or the per-file default elsewhere). This is intentional: an enabled cooldown or
 > vulnerability policy can immediately quarantine or hide packages that are currently being pulled by
 > your builds, so we don't want that to happen automatically the moment you run `terraform apply`.
 >
-> You can toggle this yourself once you're ready - copy `terraform.tfvars.example` to
+> You can toggle this once you're ready: copy `terraform.tfvars.example` to
 > `terraform.tfvars` (if you haven't already) and flip the relevant variable (`enable_policies` in
 > `option1`/`option2`) to `true`, then re-run `terraform apply`.
 >
 > **Before enabling, we recommend running the new policy through Cloudsmith's Simulation API.** It
 > evaluates the policy's Rego against your real, existing packages and reports back whether each one
-> would match, why, and what actions would fire - without changing any package state or writing to
+> would match, why, and what actions would fire, without changing any package state or writing to
 > decision logs. This lets you see the real-world impact of a policy before it can affect anything live.
 > See [Step 4: Simulating the policy](https://docs.cloudsmith.com/supply-chain-security/epm/getting-started#step-4-simulating-the-policy)
 > in Cloudsmith's docs for the exact request format, using the `slug_perm` from your `terraform output`.
@@ -145,17 +145,29 @@ data "cloudsmith_organization" "workspace" {
 
 (You can copy this boilerplate from any `versions.tf`/`variables.tf` pair in `option1/` or `option2/`.)
 
-## Policy precedence & terminal flags - quick refresher
+## Policy precedence & terminal flags
 
-- **`precedence`** - the order policies are evaluated in, lowest number first. Index-level policies
+- **`precedence`**: the order policies are evaluated in, lowest number first. Index-level policies
   (like the cooldown/index policy) are always evaluated ahead of cached-package policies, regardless
   of the `precedence` value you set.
-- **`is_terminal`** - if `true`, and the policy matches, Cloudsmith stops evaluating any further,
+- **`is_terminal`**: if `true` and the policy matches, Cloudsmith stops evaluating further,
   lower-precedence policies for that package. Use this for "final word" policies like malware
   quarantine or the index-level cooldown, so a later policy can't accidentally make a malicious/newly
   published package available again.
 
 See `docs/POLICY_REFERENCE.md` for the full breakdown of Option 1 vs Option 2.
+
+## Scope (blast radius)
+
+EPM policies evaluate across the whole workspace by default. Scope them to avoid
+acting on unrelated repositories:
+
+- Cooldown uses `cooldown_included_repositories` / `cooldown_excluded_repositories`.
+- The vulnerability policies take an optional repository allow-list
+  (`critical_vuln_repositories` / `lower_vuln_repositories` on the single-file
+  templates, `scope_repositories` in the option stacks). Empty applies to all
+  repositories; set repo slugs to limit it.
+- Malware is intentionally workspace-wide.
 
 ## Rego notes
 
@@ -171,16 +183,16 @@ See `docs/POLICY_REFERENCE.md` for the full breakdown of Option 1 vs Option 2.
     Without it the policy still evaluates and matches packages, but **nothing is hidden from the index**.
     The web UI adds this action for you; Terraform does not, so the templates declare it explicitly.
   - `is_terminal` must be `true`. Setting it to `false` on an index-applicable policy is **rejected by
-    the API** (HTTP 422) - it is not silently coerced, so the `terraform apply` fails.
+    the API** (HTTP 422); it is not silently coerced, so the `terraform apply` fails.
   - Only **one** index-applicable policy may exist per organization.
 - **Inline cooldown exemptions** (`exempt_package_prefixes` / `exempt_package_names` /
   `exempt_package_versions`, grouped by format; Maven keyed on `group:artifact`) let you exempt
   specific packages without disabling the policy. They live in the `rego` body, so they **are managed
-  through Terraform** - but they require the `cooldown_inline_exemptions` feature flag on your
+  through Terraform**, but they require the `cooldown_inline_exemptions` feature flag on your
   workspace, otherwise saving a policy that newly declares them is rejected. Leave them empty (`{}`) if
   you don't have the flag.
 - All other policies need a paired `cloudsmith_policy_action` resource to actually do something
-  (quarantine, tag, etc.) when `match` is `true` - a Rego policy on its own only decides *whether*
+  (quarantine, tag, etc.) when `match` is `true`. A Rego policy on its own only decides *whether*
   something matched, not what happens next.
 - More worked Rego examples: [Cloudsmith Rego Recipes](https://docs.cloudsmith.com/supply-chain-security/epm/rego)
   and [Cooldown Policy docs](https://docs.cloudsmith.com/supply-chain-security/epm/cooldown-policy).
@@ -196,8 +208,8 @@ advisory records, which carry CVSS and EPSS together per CVE), which is why the 
 The legacy `input.v0.security_scan` (Trivy) path still exists but is **gated**: on workspaces without
 the extended-sync pipeline, any policy referencing `input.v0.security_scan` is **silently skipped**.
 These templates no longer use it. There are also flag-gated `input.v1` and `input.preview` schema
-roots - confirm availability before relying on them.
+roots; confirm availability before relying on them.
 
 Field paths can still evolve. Before relying on the vulnerability templates in production, pull a real
-decision log for a package that should have matched and confirm the field names/paths line up - comments
+decision log for a package that should have matched and confirm the field names/paths line up; comments
 in each file flag exactly which assumptions to double-check.

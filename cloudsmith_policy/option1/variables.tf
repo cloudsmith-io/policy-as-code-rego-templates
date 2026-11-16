@@ -1,5 +1,5 @@
 # =============================================================================
-# Option 1 - malware checked FIRST, ahead of cooldown/vulnerability policies.
+# Option 1: malware checked first, ahead of cooldown/vulnerability policies.
 # See ../../docs/POLICY_REFERENCE.md for the full comparison against Option 2.
 # =============================================================================
 
@@ -61,7 +61,7 @@ variable "cooldown_exempt_package_versions" {
 
 # --- Cached-package cooldown --------------------------------------------
 # NOTE: index-level cooldown now natively covers cargo, conda, docker, go,
-# maven, npm, nuget, python and ruby - so this cached-package cooldown is only
+# maven, npm, nuget, python and ruby, so this cached-package cooldown is only
 # needed for formats OUTSIDE that list (e.g. deb, rpm, alpine, helm). Leave the
 # format list empty to effectively disable it.
 variable "package_age_min_days" {
@@ -73,7 +73,7 @@ variable "package_age_min_days" {
 variable "package_age_formats" {
   type        = list(string)
   default     = []
-  description = "Formats for the cached-package cooldown - ONLY formats NOT covered by the index-level cooldown (e.g. deb, rpm, alpine, helm). Empty = disabled."
+  description = "Formats for the cached-package cooldown. Use only formats outside index-level cooldown coverage (deb, rpm, alpine, helm). Empty disables it."
 }
 
 # --- Vulnerability thresholds ---------------------------------------------
@@ -104,7 +104,13 @@ variable "critical_vuln_ignored_cves" {
 variable "lower_vuln_ignored_cves" {
   type        = list(string)
   default     = []
-  description = "Vulnerability IDs (CVE/etc.) to always ignore for the lower-severity policy. Matched against the advisory identifier."
+  description = "Vulnerability ids to ignore for the lower-severity policy, matched against the advisory identifier."
+}
+
+variable "scope_repositories" {
+  type        = list(string)
+  default     = []
+  description = "Repository slugs the vulnerability policies apply to. Empty applies to all repositories in the workspace."
 }
 
 # --- Exemption tags --------------------------------------------------------

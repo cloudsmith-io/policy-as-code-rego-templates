@@ -1,5 +1,5 @@
 # =============================================================================
-# OPTION 2 - full EPM policy stack, malware checked LAST
+# Option 2: full EPM policy stack, malware checked last.
 # =============================================================================
 # Evaluation order (lowest precedence first; index-level policies always run
 # before cached-package policies regardless of the precedence value set):
@@ -11,12 +11,10 @@
 #   [cached]  3  Lower vulnerability
 #   [cached]  4  Malware                     terminal=true   <- checked last here
 #
-# Malware is still terminal, so it remains the final word - a malicious
-# package can never be released by a later policy. The difference from
-# Option 1 is that a package which is both malicious and, say, newly
-# published or vulnerable, picks up those tags too before the terminal
-# malware policy quarantines it - giving a fuller audit trail at the cost of
-# a marginally later point at which malware is the deciding factor. See
+# Malware is still terminal, so it remains the final word: a malicious package
+# can never be released by a later policy. Unlike Option 1, a package that is
+# both malicious and, say, vulnerable picks up those tags before the terminal
+# malware policy quarantines it, giving a fuller audit trail. See
 # ../../docs/POLICY_REFERENCE.md for the full comparison.
 # =============================================================================
 
@@ -42,8 +40,8 @@ locals {
 }
 
 # -----------------------------------------------------------------------
-# Index-level cooldown - REQUIRES the paired HIDDEN action below (without it
-# the policy matches but hides nothing from the index). is_terminal must be
+# Index-level cooldown. Requires the paired HIDDEN action below; without it
+# the policy matches but hides nothing from the index. is_terminal must be
 # true (the API rejects false on an index-applicable policy).
 # -----------------------------------------------------------------------
 resource "cloudsmith_policy" "index_level_cooldown" {
@@ -149,7 +147,7 @@ resource "cloudsmith_policy_action" "index_level_cooldown_hide" {
 }
 
 # -----------------------------------------------------------------------
-# Package age (cooldown catch) - precedence 1
+# Package age quarantine (precedence 1).
 # -----------------------------------------------------------------------
 resource "cloudsmith_policy" "package_age_quarantine" {
   workspace   = data.cloudsmith_organization.workspace.slug
@@ -212,7 +210,7 @@ resource "cloudsmith_policy_action" "package_age_quarantine_state" {
 }
 
 # -----------------------------------------------------------------------
-# Package age release - precedence 2 (inverse of the above)
+# Package age release (precedence 2), inverse of the above.
 # -----------------------------------------------------------------------
 resource "cloudsmith_policy" "package_age_release" {
   workspace   = data.cloudsmith_organization.workspace.slug
@@ -248,7 +246,7 @@ resource "cloudsmith_policy" "package_age_release" {
         publish_date := time.parse_rfc3339_ns(pkg.upstream_metadata.published_at)
         publish_date < within_past_days_date
         msg := sprintf(
-            "Package %v/%v (%v) has aged past the %v-day cooldown window - releasing",
+            "Package %v/%v (%v) has aged past the %v-day cooldown window",
             [pkg.name, pkg.version, pkg.format, within_past_days],
         )
     }
@@ -275,7 +273,7 @@ resource "cloudsmith_policy_action" "package_age_release_state" {
 }
 
 # -----------------------------------------------------------------------
-# Critical/High vulnerability - precedence 3
+# Critical/High vulnerability (precedence 3).
 # -----------------------------------------------------------------------
 resource "cloudsmith_policy" "vulnerability_critical_high" {
   workspace   = data.cloudsmith_organization.workspace.slug
@@ -295,6 +293,7 @@ resource "cloudsmith_policy" "vulnerability_critical_high" {
     min_cvss := ${var.critical_vuln_cvss_threshold}
     exempt_tag := "${var.exempt_tag_critical}"
     ignored_cves := {${join(", ", formatlist("%q", var.critical_vuln_ignored_cves))}}
+    scoped_repositories := {${join(", ", formatlist("%q", var.scope_repositories))}}
 
     match if {
         not _has_exempt_tag
@@ -304,6 +303,14 @@ resource "cloudsmith_policy" "vulnerability_critical_high" {
     _has_exempt_tag if {
         some tag in input.v0.package.tags
         tag.name == exempt_tag
+    }
+
+    _in_scope if {
+        count(scoped_repositories) == 0
+    }
+
+    _in_scope if {
+        input.v0.repository.slug in scoped_repositories
     }
 
     _ignored(v) if {
@@ -332,6 +339,7 @@ resource "cloudsmith_policy" "vulnerability_critical_high" {
     }
 
     reason contains msg if {
+        _in_scope
         some v in input.v0.osv
         not startswith(v.id, "MAL-")
         not _ignored(v)
@@ -367,8 +375,7 @@ resource "cloudsmith_policy_action" "critical_high_state" {
 }
 
 # -----------------------------------------------------------------------
-# Lower vulnerability - precedence 3 (same precedence as critical/high;
-# match criteria for the two policies are mutually exclusive severity bands)
+# Lower vulnerability (precedence 3).
 # -----------------------------------------------------------------------
 resource "cloudsmith_policy" "vulnerability_lower" {
   workspace   = data.cloudsmith_organization.workspace.slug
@@ -389,6 +396,7 @@ resource "cloudsmith_policy" "vulnerability_lower" {
     min_epss := ${var.lower_vuln_epss_threshold}
     exempt_tag := "${var.exempt_tag_lower}"
     ignored_cves := {${join(", ", formatlist("%q", var.lower_vuln_ignored_cves))}}
+    scoped_repositories := {${join(", ", formatlist("%q", var.scope_repositories))}}
 
     match if {
         not _has_exempt_tag
@@ -400,9 +408,18 @@ resource "cloudsmith_policy" "vulnerability_lower" {
         tag.name == exempt_tag
     }
 
-    # input.v0.vulnerabilities carries CVSS and EPSS together per advisory/CVE,
-    # so both thresholds apply to the SAME vulnerability (no cross-join).
+    _in_scope if {
+        count(scoped_repositories) == 0
+    }
+
+    _in_scope if {
+        input.v0.repository.slug in scoped_repositories
+    }
+
+    # input.v0.vulnerabilities carries CVSS and EPSS together per CVE, so both
+    # thresholds apply to the same vulnerability.
     reason contains msg if {
+        _in_scope
         some adv in input.v0.vulnerabilities
         not adv.identifier in ignored_cves
         some cvss in adv.cvss
@@ -436,7 +453,7 @@ resource "cloudsmith_policy_action" "lower_vuln_state" {
 }
 
 # -----------------------------------------------------------------------
-# Malware - precedence 4, terminal: checked last, but still has the final say
+# Malware (precedence 4, terminal): checked last, still the final say.
 # -----------------------------------------------------------------------
 resource "cloudsmith_policy" "malware_quarantine" {
   workspace   = data.cloudsmith_organization.workspace.slug

@@ -1,54 +1,26 @@
-# =============================================================================
-# TEMPLATE: Index-level Cooldown Policy (with inline exemptions)
-# =============================================================================
-# Hides packages from the Cloudsmith repository INDEX (not just quarantine)
-# until they reach a minimum age, based on the package's upstream publish date.
+# Index-level cooldown policy (with inline exemptions).
 #
-# This is a special Cloudsmith policy type: Cloudsmith recognizes a policy as an
-# "index-applicable" cooldown policy by the presence of these five Rego
-# variables (exact names, at the top level of the `cloudsmith` package):
-#   within_past_days, supported_formats, included_repositories,
-#   excluded_repositories, include_local_packages
-# Declaring ANY other top-level variable (other than the three optional
-# exemption variables below) makes the policy NOT index-applicable.
+# Hides packages from the repository index until they reach a minimum age, based
+# on upstream publish date. Cloudsmith treats a policy as index-applicable when
+# it declares exactly these five variables: within_past_days, supported_formats,
+# included_repositories, excluded_repositories, include_local_packages (plus the
+# three optional exempt_package_* below). Any other top-level variable
+# disqualifies it.
 #
-# Because of that contract:
-#   - is_terminal MUST be true. Setting it to false on an index-applicable
-#     policy is REJECTED by the API (HTTP 422: "Cannot set is_terminal to False
-#     on an index-applicable policy") - it is NOT silently coerced, so the
-#     terraform apply will fail. Keep is_terminal = true.
-#   - Index-level policies are ALWAYS evaluated before any cached-package policy,
-#     regardless of what you set `precedence` to here.
-#   - Only ONE index-applicable policy can exist per Cloudsmith organization.
-#     Creating a second is rejected ("Only one index policy is allowed per
-#     organization. Delete the existing one first.").
-#   - This policy REQUIRES a paired cloudsmith_policy_action that sets the
-#     package state to HIDDEN (see the resource at the bottom of this file).
-#     Without it the policy still evaluates and matches, but NOTHING is hidden
-#     from the index. (The web UI adds this action for you; Terraform does not,
-#     so you must declare it yourself. HIDDEN is only valid on an
-#     index-applicable policy.)
+# Contract:
+#   is_terminal must be true; false is rejected (HTTP 422), not coerced.
+#   Index-applicable policies always evaluate before cached-package policies.
+#   Only one index-applicable policy is allowed per organization.
+#   Requires the paired HIDDEN action below, or nothing is hidden. The web UI
+#   adds it automatically; Terraform does not.
 #
-# INLINE EXEMPTIONS:
-#   The three optional variables below (exempt_package_prefixes,
-#   exempt_package_names, exempt_package_versions) let you exempt specific
-#   packages from the cooldown WITHOUT disabling the policy. They are evaluated
-#   by the six `_package_exempt` rules and the `not _package_exempt` guard in
-#   `reason`. They ARE managed through Terraform (they live in the `rego` body,
-#   a writable field) - edit the variables and re-apply.
+# Inline exemptions (exempt_package_prefixes/names/versions) exempt specific
+# packages without disabling the policy. They are managed through Terraform but
+# require the cooldown_inline_exemptions workspace flag; without it, a policy
+# newly declaring them is rejected. Leave them {} if you don't have the flag.
 #
-#   REQUIRES the `cooldown_inline_exemptions` feature flag to be enabled on your
-#   workspace. If it is not, saving a policy that newly declares these variables
-#   is rejected ("Inline cooldown exemptions are not enabled for this
-#   workspace."). If you don't have the flag yet, set all three exemption
-#   variables to their empty defaults ({}) - the policy is then identical to a
-#   cooldown policy without exemptions and saves fine.
-#
-# THIS FILE IS A STANDALONE REFERENCE SNIPPET. It assumes a `provider "cloudsmith"`
-# block and a `data "cloudsmith_organization" "workspace"` data source already
-# exist in your Terraform configuration (see the root README, or copy the full
-# working stack from ../option1 or ../option2).
-# =============================================================================
+# Standalone snippet: assumes a cloudsmith provider and a
+# cloudsmith_organization "workspace" data source already exist (see README).
 
 variable "cooldown_within_past_days" {
   type        = number
@@ -58,59 +30,46 @@ variable "cooldown_within_past_days" {
 
 variable "cooldown_supported_formats" {
   type        = list(string)
-  description = <<-DESC
-    Package formats this cooldown policy applies to. Index-level cooldown
-    currently supports: cargo, conda, docker, go, maven, npm, nuget, python,
-    ruby. An empty list applies to no packages.
-  DESC
+  description = "Formats this policy applies to. Supported: cargo, conda, docker, go, maven, npm, nuget, python, ruby."
   default     = ["cargo", "conda", "docker", "go", "maven", "npm", "nuget", "python", "ruby"]
 }
 
 variable "cooldown_included_repositories" {
   type        = list(string)
-  description = "Repository slugs this policy applies to. Empty = all repositories in the workspace."
+  description = "Repository slugs this policy applies to. Empty applies to all repositories in the workspace."
   default     = []
 }
 
 variable "cooldown_excluded_repositories" {
   type        = list(string)
-  description = "Repository slugs this policy never applies to, even if also listed in included_repositories."
+  description = "Repository slugs this policy never applies to. Takes priority over included."
   default     = []
 }
 
 variable "cooldown_include_local_packages" {
   type        = bool
-  description = "Whether locally-uploaded (not upstream-proxied) packages are also subject to the cooldown. Hiding cached packages is more likely to break builds."
+  description = "Also apply to locally-uploaded packages. Hiding cached packages is more likely to break builds."
   default     = false
 }
 
-# --- Inline exemptions (require the cooldown_inline_exemptions workspace flag) -
-# Each is grouped by package format. For Maven, match on "group:artifact".
+# Inline exemptions require the cooldown_inline_exemptions workspace flag.
+# Each is keyed by format; for Maven, match on "group:artifact".
 
 variable "cooldown_exempt_package_prefixes" {
   type        = map(list(string))
-  description = <<-DESC
-    Name prefixes to exempt, keyed by format.
-    Example: { npm = ["@acme/"], maven = ["com.acme:"] }
-  DESC
+  description = "Name prefixes to exempt, keyed by format. Example: { npm = [\"@acme/\"] }"
   default     = {}
 }
 
 variable "cooldown_exempt_package_names" {
   type        = map(list(string))
-  description = <<-DESC
-    Exact package names to exempt (all versions), keyed by format.
-    Example: { maven = ["com.acme:commons-lang3"], npm = ["lodash"] }
-  DESC
+  description = "Exact names to exempt (all versions), keyed by format. Example: { maven = [\"com.acme:commons-lang3\"] }"
   default     = {}
 }
 
 variable "cooldown_exempt_package_versions" {
   type        = map(map(list(string)))
-  description = <<-DESC
-    Exact versions to exempt, keyed by format then package name.
-    Example: { npm = { lodash = ["4.17.21"] } }
-  DESC
+  description = "Exact versions to exempt, keyed by format then name. Example: { npm = { lodash = [\"4.17.21\"] } }"
   default     = {}
 }
 
@@ -142,7 +101,7 @@ resource "cloudsmith_policy" "index_level_cooldown" {
   name        = "index-level-cooldown"
   description = "Hides newly-published packages from the index until they clear the cooldown window."
   enabled     = false # start disabled; flip to true once you've simulated impact
-  is_terminal = true  # REQUIRED for this policy type - setting false is rejected (HTTP 422)
+  is_terminal = true  # required; false is rejected (HTTP 422)
   precedence  = 0     # ignored in practice for index-applicable policies, but required by the schema
 
   rego = <<-REGO
@@ -247,9 +206,8 @@ resource "cloudsmith_policy" "index_level_cooldown" {
   REGO
 }
 
-# REQUIRED: without a HIDDEN SetPackageState action, the cooldown policy matches
-# packages but hides nothing from the index. HIDDEN is only valid on an
-# index-applicable policy (which this is).
+# Required: without this HIDDEN action the policy matches but hides nothing.
+# HIDDEN is only valid on an index-applicable policy.
 resource "cloudsmith_policy_action" "index_level_cooldown_hide" {
   workspace        = data.cloudsmith_organization.workspace.slug
   policy_slug_perm = cloudsmith_policy.index_level_cooldown.slug_perm
