@@ -8,7 +8,7 @@ resource (and its `variable` blocks) into a Terraform configuration that already
 
 | File | Policy | Terminal | Needs a paired policy_action? |
 |---|---|---|---|
-| `01_index_level_cooldown.tf` | Index-level cooldown | Yes (enforced) | **No** - Cloudsmith hides matches automatically |
+| `01_index_level_cooldown.tf` | Index-level cooldown | Yes (enforced) | **Yes** - requires a `set_package_state` **HIDDEN** action (included in the template); without it nothing is hidden |
 | `02_package_age_quarantine.tf` | Cached-package cooldown "catch" | No | Yes - see `../cloudsmith_policy_action/02_package_age_quarantine_action.tf` |
 | `03_package_age_release.tf` | Cached-package cooldown "release" | No | Yes - see `../cloudsmith_policy_action/03_package_age_release_action.tf` |
 | `04_malware_quarantine.tf` | Malware | Recommended | Yes - see `../cloudsmith_policy_action/04_malware_quarantine_action.tf` |

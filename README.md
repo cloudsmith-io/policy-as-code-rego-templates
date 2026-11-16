@@ -28,9 +28,10 @@ cloudsmith-epm-terraform-templates/
 │   ├── 04_malware_quarantine.tf
 │   ├── 05_vulnerability_critical_high.tf
 │   ├── 06_vulnerability_lower.tf
-│   ├── 07_license_copyleft.tf
-│   ├── 08_simple_tag_check.tf
+│   ├── 07_high_risk_vulnerability_block.tf
+│   ├── 08_license_copyleft.tf
 │   ├── 09_package_version_compare.tf
+│   ├── 10_simple_tag_check.tf
 │   ├── option1/                    # FULL, deployable "Option 1" policy stack
 │   └── option2/                    # FULL, deployable "Option 2" policy stack
 ├── cloudsmith_policy_action/       # One reference template per policy_action TYPE
@@ -160,20 +161,43 @@ See `docs/POLICY_REFERENCE.md` for the full breakdown of Option 1 vs Option 2.
 
 - Every policy's Rego **must** produce a boolean `match` rule (`default match := false`, then
   `match if { ... }`). This is the only key Cloudsmith's evaluator reads.
-- The **index-level cooldown** policy is a special case: Cloudsmith recognizes it as a cooldown policy
-  purely by the presence of specific variable names (`within_past_days`, `supported_formats`,
-  `included_repositories`, `excluded_repositories`, `include_local_packages`) - see
-  `01_index_level_cooldown.tf` for the exact contract. It does **not** need a `cloudsmith_policy_action`
-  - Cloudsmith hides matching packages from the index automatically.
+- The **index-level cooldown** policy is a special case: Cloudsmith recognizes it as an
+  "index-applicable" cooldown policy by the presence of specific variable names (`within_past_days`,
+  `supported_formats`, `included_repositories`, `excluded_repositories`, `include_local_packages`),
+  optionally plus the three inline-exemption variables (`exempt_package_prefixes`,
+  `exempt_package_names`, `exempt_package_versions`). Declaring any *other* top-level variable makes it
+  NOT index-applicable. See `01_index_level_cooldown.tf` for the exact contract.
+  - It **requires** a paired `cloudsmith_policy_action` that sets the package state to **`HIDDEN`**.
+    Without it the policy still evaluates and matches packages, but **nothing is hidden from the index**.
+    The web UI adds this action for you; Terraform does not, so the templates declare it explicitly.
+  - `is_terminal` must be `true`. Setting it to `false` on an index-applicable policy is **rejected by
+    the API** (HTTP 422) - it is not silently coerced, so the `terraform apply` fails.
+  - Only **one** index-applicable policy may exist per organization.
+- **Inline cooldown exemptions** (`exempt_package_prefixes` / `exempt_package_names` /
+  `exempt_package_versions`, grouped by format; Maven keyed on `group:artifact`) let you exempt
+  specific packages without disabling the policy. They live in the `rego` body, so they **are managed
+  through Terraform** - but they require the `cooldown_inline_exemptions` feature flag on your
+  workspace, otherwise saving a policy that newly declares them is rejected. Leave them empty (`{}`) if
+  you don't have the flag.
 - All other policies need a paired `cloudsmith_policy_action` resource to actually do something
   (quarantine, tag, etc.) when `match` is `true` - a Rego policy on its own only decides *whether*
   something matched, not what happens next.
 - More worked Rego examples: [Cloudsmith Rego Recipes](https://docs.cloudsmith.com/supply-chain-security/epm/rego)
   and [Cooldown Policy docs](https://docs.cloudsmith.com/supply-chain-security/epm/cooldown-policy).
 
-## A note on field names used in the vulnerability Rego
+## A note on the vulnerability data source (OSV, not Trivy)
 
-The exact input schema for CVE/CVSS/EPSS data (`input.v0.security_scan[...]`) can evolve as Cloudsmith's
-scanning integration changes. Before relying on the vulnerability templates in production, pull a real
-decision log for a package that should have matched and confirm the field names/paths still line up -
-comments in each file flag exactly which assumptions to double-check.
+Cloudsmith's vulnerability data is now served to policies via **OSV**. The canonical path is
+`input.v0.osv` (an array of OSV-format records), used by the malware (`04`), critical/high (`05`) and
+high-risk (`07`) templates. EPSS is only exposed on `input.v0.vulnerabilities` (Cloudsmith's enriched
+advisory records, which carry CVSS and EPSS together per CVE), which is why the lower-severity template
+(`06`) reads from there.
+
+The legacy `input.v0.security_scan` (Trivy) path still exists but is **gated**: on workspaces without
+the extended-sync pipeline, any policy referencing `input.v0.security_scan` is **silently skipped**.
+These templates no longer use it. There are also flag-gated `input.v1` and `input.preview` schema
+roots - confirm availability before relying on them.
+
+Field paths can still evolve. Before relying on the vulnerability templates in production, pull a real
+decision log for a package that should have matched and confirm the field names/paths line up - comments
+in each file flag exactly which assumptions to double-check.

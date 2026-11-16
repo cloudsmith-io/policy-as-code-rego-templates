@@ -23,8 +23,8 @@ variable "package_age_release_min_days" {
 
 variable "package_age_release_formats" {
   type        = list(string)
-  description = "Formats this release policy applies to (should match the quarantine policy's formats)."
-  default     = ["nuget", "docker", "ruby", "go", "rust", "conda", "maven"]
+  description = "Formats this release policy applies to (should match the quarantine policy's formats - only formats outside index-level cooldown coverage, e.g. deb, rpm, alpine, helm)."
+  default     = ["deb", "rpm", "alpine", "helm"]
 }
 
 variable "package_age_release_cooldown_tag" {

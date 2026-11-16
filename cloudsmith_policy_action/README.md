@@ -18,9 +18,11 @@ setting package state (`set_package_state`), adding tags (`add_package_tags`), o
 | `05_vulnerability_critical_high_action.tf` | `cloudsmith_policy/05_vulnerability_critical_high.tf` | add tag `cve_detected` → set state `QUARANTINED` |
 | `06_vulnerability_lower_action.tf` | `cloudsmith_policy/06_vulnerability_lower.tf` | add tag `lower_vuln` → set state `QUARANTINED` |
 
-There's intentionally no `01_index_level_cooldown_action.tf` - the index-level cooldown policy needs no
-action resource; Cloudsmith hides matching packages from the index automatically (see the header
-comment in `../cloudsmith_policy/01_index_level_cooldown.tf`).
+There's no separate `01_index_level_cooldown_action.tf` here because the index-level cooldown's required
+action is bundled directly into `../cloudsmith_policy/01_index_level_cooldown.tf` (and the `option1`/
+`option2` stacks). That policy REQUIRES a `set_package_state` action with `package_state = "HIDDEN"` -
+without it the policy matches packages but hides nothing from the index. `HIDDEN` is only valid on an
+index-applicable policy. See the header comment in `../cloudsmith_policy/01_index_level_cooldown.tf`.
 
 ## Wiring a policy to its action
 

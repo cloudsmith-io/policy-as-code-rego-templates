@@ -2,9 +2,15 @@
 # TEMPLATE: Package Age (Cooldown) Quarantine Policy - cached packages
 # =============================================================================
 # For formats NOT covered by the index-level cooldown policy (see
-# 01_index_level_cooldown.tf) - e.g. NuGet, Docker, Ruby, Rust, Conda, Maven -
-# this policy tags and quarantines packages that are too new, based on their
-# upstream publish date. Packages tagged EXEMPT_COOLDOWN are skipped.
+# 01_index_level_cooldown.tf) this policy tags and quarantines packages that are
+# too new, based on their upstream publish date. Packages tagged EXEMPT_COOLDOWN
+# are skipped.
+#
+# NOTE: index-level cooldown now NATIVELY covers cargo, conda, docker, go,
+# maven, npm, nuget, python and ruby. Prefer the index-level cooldown (01) for
+# those - it hides packages from the index rather than caching-then-quarantining.
+# This cached-package policy is only for formats OUTSIDE that list (e.g. deb,
+# rpm, alpine, helm).
 #
 # This policy is NOT terminal: once a package is quarantined here, later
 # (higher-precedence-number) policies still run, so a package can accumulate
@@ -27,8 +33,8 @@ variable "package_age_min_days" {
 
 variable "package_age_formats" {
   type        = list(string)
-  description = "Formats this cached-level package-age policy applies to (formats not handled by the index-level cooldown policy)."
-  default     = ["nuget", "docker", "ruby", "rust", "conda", "maven"]
+  description = "Formats this cached-level package-age policy applies to - ONLY formats not handled by the index-level cooldown policy (e.g. deb, rpm, alpine, helm)."
+  default     = ["deb", "rpm", "alpine", "helm"]
 }
 
 variable "package_age_exempt_tag" {

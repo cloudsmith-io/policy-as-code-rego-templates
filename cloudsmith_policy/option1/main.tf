@@ -17,14 +17,36 @@
 # versus Option 2 (malware checked last).
 # =============================================================================
 
+locals {
+  # Render inline cooldown exemptions into Rego object/set literals. Empty maps
+  # render as {} (exempts nothing). Requires the cooldown_inline_exemptions
+  # workspace feature flag when non-empty.
+  _cooldown_exempt_prefixes_rego = length(var.cooldown_exempt_package_prefixes) == 0 ? "{}" : format("{%s}", join(", ", [
+    for fmt, vals in var.cooldown_exempt_package_prefixes :
+    format("%s: {%s}", jsonencode(fmt), join(", ", formatlist("%q", vals)))
+  ]))
+  _cooldown_exempt_names_rego = length(var.cooldown_exempt_package_names) == 0 ? "{}" : format("{%s}", join(", ", [
+    for fmt, vals in var.cooldown_exempt_package_names :
+    format("%s: {%s}", jsonencode(fmt), join(", ", formatlist("%q", vals)))
+  ]))
+  _cooldown_exempt_versions_rego = length(var.cooldown_exempt_package_versions) == 0 ? "{}" : format("{%s}", join(", ", [
+    for fmt, names in var.cooldown_exempt_package_versions :
+    format("%s: {%s}", jsonencode(fmt), join(", ", [
+      for nm, vers in names :
+      format("%s: {%s}", jsonencode(nm), join(", ", formatlist("%q", vers)))
+    ]))
+  ]))
+}
+
 # -----------------------------------------------------------------------
-# Index-level cooldown (no policy_action needed - see file header comment
-# in ../01_index_level_cooldown.tf for why)
+# Index-level cooldown - REQUIRES the paired HIDDEN action below (without it
+# the policy matches but hides nothing from the index). is_terminal must be
+# true (the API rejects false on an index-applicable policy).
 # -----------------------------------------------------------------------
 resource "cloudsmith_policy" "index_level_cooldown" {
   workspace   = data.cloudsmith_organization.workspace.slug
   name        = "option1-index-level-cooldown"
-  description = "Hides newly-published npm/Python/Go packages from the index until they clear the cooldown window."
+  description = "Hides newly-published packages from the index until they clear the cooldown window."
   enabled     = var.enable_policies
   is_terminal = true
   precedence  = 0
@@ -40,7 +62,10 @@ resource "cloudsmith_policy" "index_level_cooldown" {
     supported_formats := {${join(", ", formatlist("%q", var.index_cooldown_formats))}}
     included_repositories := {}
     excluded_repositories := {}
-    include_local_packages := true
+    exempt_package_prefixes := ${local._cooldown_exempt_prefixes_rego}
+    exempt_package_names := ${local._cooldown_exempt_names_rego}
+    exempt_package_versions := ${local._cooldown_exempt_versions_rego}
+    include_local_packages := ${var.cooldown_include_local_packages}
 
     match if count(reason) != 0
 
@@ -62,9 +87,42 @@ resource "cloudsmith_policy" "index_level_cooldown" {
         not input.v0.repository.slug in excluded_repositories
     }
 
+    _package_exempt if {
+        not input.v0.package.format in {"maven"}
+        some prefix in exempt_package_prefixes[input.v0.package.format]
+        startswith(input.v0.package.name, prefix)
+    }
+
+    _package_exempt if {
+        input.v0.package.format in {"maven"}
+        some prefix in exempt_package_prefixes[input.v0.package.format]
+        startswith(concat(":", [input.v0.package.group, input.v0.package.name]), prefix)
+    }
+
+    _package_exempt if {
+        not input.v0.package.format in {"maven"}
+        input.v0.package.name in exempt_package_names[input.v0.package.format]
+    }
+
+    _package_exempt if {
+        input.v0.package.format in {"maven"}
+        concat(":", [input.v0.package.group, input.v0.package.name]) in exempt_package_names[input.v0.package.format]
+    }
+
+    _package_exempt if {
+        not input.v0.package.format in {"maven"}
+        input.v0.package.version in exempt_package_versions[input.v0.package.format][input.v0.package.name]
+    }
+
+    _package_exempt if {
+        input.v0.package.format in {"maven"}
+        input.v0.package.version in exempt_package_versions[input.v0.package.format][concat(":", [input.v0.package.group, input.v0.package.name])]
+    }
+
     reason contains msg if {
         _should_evaluate
         _repo_allowed
+        not _package_exempt
         pkg := input.v0.package
         within_past_days_date := time.add_date(time.now_ns(), 0, 0, 0 - within_past_days)
         publish_date := time.parse_rfc3339_ns(pkg.upstream_metadata.published_at)
@@ -76,6 +134,15 @@ resource "cloudsmith_policy" "index_level_cooldown" {
         )
     }
   REGO
+}
+
+resource "cloudsmith_policy_action" "index_level_cooldown_hide" {
+  workspace        = data.cloudsmith_organization.workspace.slug
+  policy_slug_perm = cloudsmith_policy.index_level_cooldown.slug_perm
+
+  set_package_state {
+    package_state = "HIDDEN"
+  }
 }
 
 # -----------------------------------------------------------------------
@@ -268,9 +335,8 @@ resource "cloudsmith_policy" "vulnerability_critical_high" {
 
     default match := false
 
-    max_cvss_score := ${var.critical_vuln_cvss_threshold}
+    min_cvss := ${var.critical_vuln_cvss_threshold}
     exempt_tag := "${var.exempt_tag_critical}"
-    ignored_cves := {}
 
     match if {
         not _has_exempt_tag
@@ -282,21 +348,32 @@ resource "cloudsmith_policy" "vulnerability_critical_high" {
         tag.name == exempt_tag
     }
 
+    _cvss_scores(v) := {s |
+        some sev in array.concat(
+            [x | some x in v.severity],
+            [x | some a in v.affected; some x in a.severity],
+        )
+        s := sev.numerical_score
+        s != null
+    }
+
+    _has_fix(v) if {
+        some a in v.affected
+        some r in a.ranges
+        some e in r.events
+        e.fixed
+    }
+
     reason contains msg if {
-        some scan in input.v0.security_scan
-        some vulnerability in scan.Vulnerabilities
-
-        vulnerability.FixedVersion
-        vulnerability.Status == "fixed"
-
-        some val in vulnerability.CVSS
-        val.V3Score > max_cvss_score
-
-        not vulnerability.VulnerabilityID in ignored_cves
-
+        some v in input.v0.osv
+        not startswith(v.id, "MAL-")
+        scores := _cvss_scores(v)
+        count(scores) > 0
+        max(scores) > min_cvss
+        _has_fix(v)
         msg := sprintf(
             "Critical/High CVE %v (CVSS %v) detected in %v",
-            [vulnerability.VulnerabilityID, val.V3Score, input.v0["package"].name],
+            [v.id, max(scores), input.v0.package.name],
         )
     }
   REGO
@@ -340,10 +417,9 @@ resource "cloudsmith_policy" "vulnerability_lower" {
 
     default match := false
 
-    max_cvss_score := ${var.lower_vuln_cvss_threshold}
-    max_epss_score := ${var.lower_vuln_epss_threshold}
+    min_cvss := ${var.lower_vuln_cvss_threshold}
+    min_epss := ${var.lower_vuln_epss_threshold}
     exempt_tag := "${var.exempt_tag_lower}"
-    ignored_cves := {}
 
     match if {
         not _has_exempt_tag
@@ -355,21 +431,16 @@ resource "cloudsmith_policy" "vulnerability_lower" {
         tag.name == exempt_tag
     }
 
+    # input.v0.vulnerabilities carries CVSS and EPSS together per advisory/CVE,
+    # so both thresholds apply to the SAME vulnerability (no cross-join).
     reason contains msg if {
-        some scan in input.v0.security_scan
-        some vulnerability in scan.Vulnerabilities
-
-        some val in vulnerability.CVSS
-        val.V3Score > max_cvss_score
-
-        some vuln in input.v0["vulnerabilities"]
-        vuln.epss.score > max_epss_score
-
-        not vulnerability.VulnerabilityID in ignored_cves
-
+        some adv in input.v0.vulnerabilities
+        some cvss in adv.cvss
+        cvss.V3Score > min_cvss
+        adv.epss.score > min_epss
         msg := sprintf(
             "Lower-severity CVE %v (CVSS %v, EPSS %v) detected in %v",
-            [vulnerability.VulnerabilityID, val.V3Score, vuln.epss.score, input.v0["package"].name],
+            [adv.identifier, cvss.V3Score, adv.epss.score, input.v0.package.name],
         )
     }
   REGO

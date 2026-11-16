@@ -22,7 +22,7 @@ design exercise. Use this as the "what and why" companion to the `.tf` files.
 
 | File | Type | Terminal? | What it does |
 |---|---|---|---|
-| `01_index_level_cooldown.tf` | Index-level cooldown | Always `true` (enforced by Cloudsmith) | Hides packages newer than `within_past_days` from the index for the configured formats (npm/Python/Go natively; check current docs for expanded format support before assuming NuGet etc. are covered here). |
+| `01_index_level_cooldown.tf` | Index-level cooldown | Always `true` (enforced; API rejects `false`) | Hides packages newer than `within_past_days` from the index. Natively supports cargo, conda, docker, go, maven, npm, nuget, python, ruby. Requires a paired `set_package_state` **HIDDEN** action. Supports inline exemptions. |
 | `02_package_age_quarantine.tf` | Cached-package cooldown/"catch" | `false` | For formats not (yet) covered by the index-level cooldown - tags and quarantines packages published too recently, unless they carry an `EXEMPT_COOLDOWN` tag. |
 | `03_package_age_release.tf` | Cached-package cooldown "release" | `false` | Inverse of the above - once a package ages out of the cooldown window, removes the `in_cooldown` tag and makes it available again. |
 | `04_malware_quarantine.tf` | Malware | `true` (recommended) | Quarantines any package flagged with a malware (`MAL-`) identifier. |
@@ -32,12 +32,30 @@ design exercise. Use this as the "what and why" companion to the `.tf` files.
 | `08_simple_tag_check.tf` | Tag check | `false` | Bonus/reference template - the simplest possible Rego policy: match on a tag. |
 | `09_package_version_compare.tf` | Version compare | `false` | Bonus/reference template - block/flag a package below a specific known-good version. |
 
-## Exemption tagging convention
+## Exemption models
 
-Tags used across these templates to mark an exemption, so packages can be safely excluded from a
-specific policy without disabling the policy for everyone:
+There are two distinct exemption mechanisms in this repo:
 
-- `EXEMPT_COOLDOWN` - bypasses the package-age/cooldown quarantine policy
+### 1. Inline cooldown exemptions (index-level cooldown only)
+
+The index-level cooldown policy (`01`) supports **inline exemptions** via three Rego variables, grouped
+by format (for Maven, keyed on `group:artifact`):
+
+- `exempt_package_prefixes` - e.g. `{ npm = ["@acme/"] }`
+- `exempt_package_names` - exact names, all versions, e.g. `{ maven = ["com.acme:commons-lang3"] }`
+- `exempt_package_versions` - exact versions, e.g. `{ npm = { lodash = ["4.17.21"] } }`
+
+These are exposed as Terraform variables (`cooldown_exempt_package_*`) and are managed through
+Terraform like any other input. **They require the `cooldown_inline_exemptions` feature flag** on your
+workspace; without it, saving a policy that newly declares them is rejected. Leave them empty (`{}`) if
+you don't have the flag.
+
+### 2. Tag-based exemptions (cached-package & vulnerability policies)
+
+Tags used across the cached-package cooldown and vulnerability templates to mark an exemption, so a
+package can be excluded from a specific policy without disabling the policy for everyone:
+
+- `EXEMPT_COOLDOWN` - bypasses the cached-package-age/cooldown quarantine policy
 - `EXEMPT_CRITICAL` - bypasses the critical/high vulnerability policy
 - `EXEMPT_LOWER` - bypasses the lower-vulnerability policy
 
@@ -95,9 +113,11 @@ vulnerability, malware) recorded even when malware is also present.
 ## Recommended tolerance thresholds (starting points - tune to your risk appetite)
 
 - Cooldown window: 3-5 days is common; some teams use up to 14 days for higher-risk ecosystems.
-- Critical/High vulnerability: CVSS v3 score > 9.
-- Lower vulnerability: CVSS v3 score > 6 **and** EPSS > 8 (i.e., a real-world exploitation-likelihood
-  signal, not CVSS alone) - this keeps the "lower" bucket from over-quarantining low-risk CVEs.
+- Critical/High vulnerability: CVSS score > 9 (and a fix available).
+- Lower vulnerability: CVSS v3 score > 6 **and** EPSS > 0.1 (EPSS is a **0-1 probability**, e.g. 0.1 =
+  ~10% exploitation likelihood - it is NOT a 0-100 scale). Combining the two keeps the "lower" bucket
+  from over-quarantining low-risk CVEs. Note: CVSS and EPSS are read from the same advisory record
+  (`input.v0.vulnerabilities`), so both thresholds apply to the same CVE.
 
 ## Verifying policy impact before full enablement
 

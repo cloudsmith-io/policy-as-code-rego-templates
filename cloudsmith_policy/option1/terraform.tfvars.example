@@ -6,3 +6,9 @@ organization_slug = "your-org-slug"
 
 # Keep false until you've reviewed simulated impact, then flip to true and re-apply.
 enable_policies = false
+
+# --- Optional: inline cooldown exemptions (needs the cooldown_inline_exemptions
+#     workspace feature flag). Grouped by format; Maven uses "group:artifact". ---
+# cooldown_exempt_package_prefixes = { npm = ["@acme/"] }
+# cooldown_exempt_package_names    = { maven = ["com.acme:commons-lang3"] }
+# cooldown_exempt_package_versions = { npm = { lodash = ["4.17.21"] } }
