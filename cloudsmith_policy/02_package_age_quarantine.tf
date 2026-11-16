@@ -1,39 +1,30 @@
-# =============================================================================
-# TEMPLATE: Package Age (Cooldown) Quarantine Policy - cached packages
-# =============================================================================
-# For formats NOT covered by the index-level cooldown policy (see
-# 01_index_level_cooldown.tf) - e.g. NuGet, Docker, Ruby, Rust, Conda, Maven -
-# this policy tags and quarantines packages that are too new, based on their
-# upstream publish date. Packages tagged EXEMPT_COOLDOWN are skipped.
+# Cached-package cooldown (quarantine).
 #
-# This policy is NOT terminal: once a package is quarantined here, later
-# (higher-precedence-number) policies still run, so a package can accumulate
-# multiple reason tags (e.g. also cve_detected) while quarantined.
+# Tags and quarantines packages published within the cooldown window, for
+# formats the index-level cooldown (01) does not cover. Packages tagged
+# EXEMPT_COOLDOWN are skipped. Not terminal, so later policies still run.
 #
-# Pair this with a cloudsmith_policy_action resource - see
-# ../cloudsmith_policy_action/02_package_age_quarantine_action.tf - to actually
-# add the "in_cooldown" tag and set the package state to quarantine when it
-# matches.
-#
-# THIS FILE IS A STANDALONE REFERENCE SNIPPET - see the root README for how to
-# wire it into a working Terraform configuration.
-# =============================================================================
+# Index-level cooldown now natively covers cargo, conda, docker, go, maven, npm,
+# nuget, python, ruby. Use this only for formats outside that list (deb, rpm,
+# alpine, helm). Pair with
+# ../cloudsmith_policy_action/02_package_age_quarantine_action.tf.
+# Standalone snippet; see README for wiring.
 
 variable "package_age_min_days" {
   type        = number
-  description = "Minimum age (in days) a package must reach before it's released from quarantine."
+  description = "Minimum age in days before a package clears the cooldown window."
   default     = 5
 }
 
 variable "package_age_formats" {
   type        = list(string)
-  description = "Formats this cached-level package-age policy applies to (formats not handled by the index-level cooldown policy)."
-  default     = ["nuget", "docker", "ruby", "rust", "conda", "maven"]
+  description = "Formats this policy applies to. Use only formats outside index-level cooldown coverage (deb, rpm, alpine, helm)."
+  default     = ["deb", "rpm", "alpine", "helm"]
 }
 
 variable "package_age_exempt_tag" {
   type        = string
-  description = "Tag that exempts a package from this policy entirely."
+  description = "Package tag that exempts a package from this policy."
   default     = "EXEMPT_COOLDOWN"
 }
 

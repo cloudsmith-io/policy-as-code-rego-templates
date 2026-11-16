@@ -1,5 +1,5 @@
 # =============================================================================
-# Option 2 - malware checked LAST, after cooldown/vulnerability policies.
+# Option 2: malware checked last, after cooldown/vulnerability policies.
 # See ../../docs/POLICY_REFERENCE.md for the full comparison against Option 1.
 # =============================================================================
 
@@ -29,11 +29,41 @@ variable "index_cooldown_within_past_days" {
 
 variable "index_cooldown_formats" {
   type        = list(string)
-  default     = ["npm", "python", "go", "nuget"]
-  description = "Formats covered by the index-level cooldown policy."
+  default     = ["cargo", "conda", "docker", "go", "maven", "npm", "nuget", "python", "ruby"]
+  description = "Formats covered by the index-level cooldown policy. Supported: cargo, conda, docker, go, maven, npm, nuget, python, ruby."
 }
 
-# --- Cached-package cooldown (formats not covered by the index policy) --
+variable "cooldown_include_local_packages" {
+  type        = bool
+  default     = false
+  description = "Whether locally-uploaded packages are also subject to the cooldown. Hiding cached packages is more likely to break builds."
+}
+
+# --- Inline cooldown exemptions (require the cooldown_inline_exemptions flag) --
+# Each is grouped by package format; for Maven, match on "group:artifact".
+variable "cooldown_exempt_package_prefixes" {
+  type        = map(list(string))
+  default     = {}
+  description = "Name prefixes to exempt from cooldown, keyed by format. e.g. { npm = [\"@acme/\"] }"
+}
+
+variable "cooldown_exempt_package_names" {
+  type        = map(list(string))
+  default     = {}
+  description = "Exact names to exempt (all versions), keyed by format. e.g. { maven = [\"com.acme:commons-lang3\"] }"
+}
+
+variable "cooldown_exempt_package_versions" {
+  type        = map(map(list(string)))
+  default     = {}
+  description = "Exact versions to exempt, keyed by format then name. e.g. { npm = { lodash = [\"4.17.21\"] } }"
+}
+
+# --- Cached-package cooldown --------------------------------------------
+# NOTE: index-level cooldown now natively covers cargo, conda, docker, go,
+# maven, npm, nuget, python and ruby, so this cached-package cooldown is only
+# needed for formats OUTSIDE that list (e.g. deb, rpm, alpine, helm). Leave the
+# format list empty to effectively disable it.
 variable "package_age_min_days" {
   type        = number
   default     = 5
@@ -42,8 +72,8 @@ variable "package_age_min_days" {
 
 variable "package_age_formats" {
   type        = list(string)
-  default     = ["docker", "ruby", "rust", "conda", "maven"]
-  description = "Formats covered by the cached-package cooldown policy (i.e. NOT already covered by the index-level cooldown)."
+  default     = []
+  description = "Formats for the cached-package cooldown. Use only formats outside index-level cooldown coverage (deb, rpm, alpine, helm). Empty disables it."
 }
 
 # --- Vulnerability thresholds ---------------------------------------------
@@ -61,22 +91,40 @@ variable "lower_vuln_cvss_threshold" {
 
 variable "lower_vuln_epss_threshold" {
   type        = number
-  default     = 0.0001
-  description = "EPSS score threshold (exclusive) for the lower-severity vulnerability policy."
+  default     = 0.1
+  description = "EPSS threshold (0-1 probability; exclusive) for the lower-severity vulnerability policy. E.g. 0.1 = ~10% exploitation likelihood."
+}
+
+variable "critical_vuln_ignored_cves" {
+  type        = list(string)
+  default     = []
+  description = "Vulnerability IDs (CVE/GHSA/etc.) to always ignore for the Critical/High policy, regardless of severity. Matched against each OSV record's id and aliases."
+}
+
+variable "lower_vuln_ignored_cves" {
+  type        = list(string)
+  default     = []
+  description = "Vulnerability ids to ignore for the lower-severity policy, matched against the advisory identifier."
+}
+
+variable "scope_repositories" {
+  type        = list(string)
+  default     = []
+  description = "Repository slugs the vulnerability policies apply to. Empty applies to all repositories in the workspace."
 }
 
 # --- Exemption tags --------------------------------------------------------
 variable "exempt_tag_cooldown" {
-  type        = string
-  default     = "EXEMPT_COOLDOWN"
+  type    = string
+  default = "EXEMPT_COOLDOWN"
 }
 
 variable "exempt_tag_critical" {
-  type        = string
-  default     = "EXEMPT_CRITICAL"
+  type    = string
+  default = "EXEMPT_CRITICAL"
 }
 
 variable "exempt_tag_lower" {
-  type        = string
-  default     = "EXEMPT_LOWER"
+  type    = string
+  default = "EXEMPT_LOWER"
 }

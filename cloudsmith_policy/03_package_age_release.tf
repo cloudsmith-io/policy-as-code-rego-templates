@@ -1,30 +1,22 @@
-# =============================================================================
-# TEMPLATE: Package Age Release Policy - cached packages
-# =============================================================================
+# Cached-package cooldown (release).
+#
 # Inverse of 02_package_age_quarantine.tf: once a package tagged "in_cooldown"
-# ages past the cooldown window, this policy matches so its paired
-# cloudsmith_policy_action (see
-# ../cloudsmith_policy_action/03_package_age_release_action.tf) can remove the
-# tag and set the package back to Available.
-#
-# With Continuous Package Enrichment enabled, packages are re-evaluated at
-# least every 12 hours, so a package typically clears quarantine within 24h of
-# becoming compliant, not necessarily instantly.
-#
-# THIS FILE IS A STANDALONE REFERENCE SNIPPET - see the root README for how to
-# wire it into a working Terraform configuration.
-# =============================================================================
+# ages past the window, this matches so its paired action
+# (../cloudsmith_policy_action/03_package_age_release_action.tf) removes the tag
+# and makes it available again. With continuous enrichment, a package typically
+# clears quarantine within 24h of becoming compliant, not instantly.
+# Standalone snippet; see README for wiring.
 
 variable "package_age_release_min_days" {
   type        = number
-  description = "Age (in days) a package must exceed to be released from cooldown quarantine. Should match package_age_min_days used by the quarantine policy."
+  description = "Age in days a package must exceed to be released. Match the quarantine policy's value."
   default     = 5
 }
 
 variable "package_age_release_formats" {
   type        = list(string)
-  description = "Formats this release policy applies to (should match the quarantine policy's formats)."
-  default     = ["nuget", "docker", "ruby", "go", "rust", "conda", "maven"]
+  description = "Formats this policy applies to. Match the quarantine policy's formats."
+  default     = ["deb", "rpm", "alpine", "helm"]
 }
 
 variable "package_age_release_cooldown_tag" {
@@ -67,7 +59,7 @@ resource "cloudsmith_policy" "package_age_release" {
         publish_date := time.parse_rfc3339_ns(pkg.upstream_metadata.published_at)
         publish_date < min_age_date
         msg := sprintf(
-            "Package %v/%v (%v) has aged past the %v-day cooldown window - releasing",
+            "Package %v/%v (%v) has aged past the %v-day cooldown window",
             [pkg.name, pkg.version, pkg.format, min_age_days],
         )
     }
