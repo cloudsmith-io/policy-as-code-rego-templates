@@ -59,6 +59,15 @@ package can be excluded from a specific policy without disabling the policy for 
 - `EXEMPT_CRITICAL` - bypasses the critical/high vulnerability policy
 - `EXEMPT_LOWER` - bypasses the lower-vulnerability policy
 
+### 3. Per-CVE ignore lists (vulnerability policies)
+
+Separately from the per-package tags, the vulnerability policies (`05`, `06`, and the option stacks)
+accept a list of vulnerability IDs to suppress **everywhere**, via the `critical_vuln_ignored_cves` /
+`lower_vuln_ignored_cves` Terraform variables (default empty). Critical/High matches an OSV record's
+`id` **and** its `aliases` (so a CVE or its GHSA alias both work); the lower policy matches the advisory
+`identifier`. Use this when a specific CVE is a confirmed false positive across all packages, rather than
+exempting each package individually.
+
 A typical exemption workflow (e.g. via a ticketing system) would, on approval:
 1. Unquarantine/release the package via the Cloudsmith API.
 2. Add two tags to the package: a ticket reference (e.g. `SD_#12345`) and the relevant exemption tag

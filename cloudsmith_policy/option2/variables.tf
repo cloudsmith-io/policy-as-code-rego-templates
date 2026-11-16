@@ -95,6 +95,18 @@ variable "lower_vuln_epss_threshold" {
   description = "EPSS threshold (0-1 probability; exclusive) for the lower-severity vulnerability policy. E.g. 0.1 = ~10% exploitation likelihood."
 }
 
+variable "critical_vuln_ignored_cves" {
+  type        = list(string)
+  default     = []
+  description = "Vulnerability IDs (CVE/GHSA/etc.) to always ignore for the Critical/High policy, regardless of severity. Matched against each OSV record's id and aliases."
+}
+
+variable "lower_vuln_ignored_cves" {
+  type        = list(string)
+  default     = []
+  description = "Vulnerability IDs (CVE/etc.) to always ignore for the lower-severity policy. Matched against the advisory identifier."
+}
+
 # --- Exemption tags --------------------------------------------------------
 variable "exempt_tag_cooldown" {
   type    = string

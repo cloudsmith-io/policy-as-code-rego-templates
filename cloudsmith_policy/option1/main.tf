@@ -337,6 +337,7 @@ resource "cloudsmith_policy" "vulnerability_critical_high" {
 
     min_cvss := ${var.critical_vuln_cvss_threshold}
     exempt_tag := "${var.exempt_tag_critical}"
+    ignored_cves := {${join(", ", formatlist("%q", var.critical_vuln_ignored_cves))}}
 
     match if {
         not _has_exempt_tag
@@ -346,6 +347,15 @@ resource "cloudsmith_policy" "vulnerability_critical_high" {
     _has_exempt_tag if {
         some tag in input.v0.package.tags
         tag.name == exempt_tag
+    }
+
+    _ignored(v) if {
+        v.id in ignored_cves
+    }
+
+    _ignored(v) if {
+        some a in v.aliases
+        a in ignored_cves
     }
 
     _cvss_scores(v) := {s |
@@ -367,6 +377,7 @@ resource "cloudsmith_policy" "vulnerability_critical_high" {
     reason contains msg if {
         some v in input.v0.osv
         not startswith(v.id, "MAL-")
+        not _ignored(v)
         scores := _cvss_scores(v)
         count(scores) > 0
         max(scores) > min_cvss
@@ -420,6 +431,7 @@ resource "cloudsmith_policy" "vulnerability_lower" {
     min_cvss := ${var.lower_vuln_cvss_threshold}
     min_epss := ${var.lower_vuln_epss_threshold}
     exempt_tag := "${var.exempt_tag_lower}"
+    ignored_cves := {${join(", ", formatlist("%q", var.lower_vuln_ignored_cves))}}
 
     match if {
         not _has_exempt_tag
@@ -435,6 +447,7 @@ resource "cloudsmith_policy" "vulnerability_lower" {
     # so both thresholds apply to the SAME vulnerability (no cross-join).
     reason contains msg if {
         some adv in input.v0.vulnerabilities
+        not adv.identifier in ignored_cves
         some cvss in adv.cvss
         cvss.V3Score > min_cvss
         adv.epss.score > min_epss
