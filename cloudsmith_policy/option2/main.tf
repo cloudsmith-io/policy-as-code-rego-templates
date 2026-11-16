@@ -1,5 +1,5 @@
 # =============================================================================
-# Option 2: full EPM policy stack, malware checked last.
+# Option 2: full policy-as-code stack, malware checked last.
 # =============================================================================
 # Evaluation order (lowest precedence first; index-level policies always run
 # before cached-package policies regardless of the precedence value set):
