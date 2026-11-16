@@ -56,7 +56,6 @@ policy-as-code-rego-templates/
 
 ## Prerequisites
 
-- [Terraform](https://developer.hashicorp.com/terraform/install) >= 1.5
 - A Cloudsmith organization/workspace with **policy-as-code** enabled
 - A Cloudsmith API key with permission to manage policies
   ([Generating an API Key](https://docs.cloudsmith.com/accounts-and-teams/api-key))
